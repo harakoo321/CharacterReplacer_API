@@ -3,27 +3,23 @@ package com.tumagurocup_cswin.demo.service;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.imageio.ImageIO;
-
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.core.Point;
-import org.opencv.core.Rect;
-import org.opencv.core.Scalar;
-import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.imgproc.Imgproc;
+import org.bytedeco.javacpp.BytePointer;
+import org.bytedeco.opencv.global.opencv_imgcodecs;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Rect;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.opencv.core.CvType;
 import org.springframework.stereotype.Service;
 
 @Service
 public class CharacterReplacer {
 	public Mat ConvertByteToMat(byte[] bytes)
 	{
-		return Imgcodecs.imdecode(new MatOfByte(bytes), Imgcodecs.IMREAD_UNCHANGED);
+		return opencv_imgcodecs.imdecode(new Mat(bytes), opencv_imgcodecs.IMREAD_COLOR);
 	}
 	
 	public List<Rect> CreateRectList(List<Integer> x, List<Integer> y, List<Integer> width, List<Integer> height){
@@ -34,17 +30,18 @@ public class CharacterReplacer {
 		return rectList;
 	}
 	
-	public byte[] ReplaceCharacter(List<String> textList, List<Rect> rectList, Mat mat)
+	public byte[] ReplaceCharacter(int size, List<String> textList, List<Rect> rectList, Mat mat)
     {
+		/*
         for (int i = 0; i < rectList.size(); i++)
 		{
 			DrawingRectangle(mat, rectList.get(i));
             DrawingText(mat, textList.get(i), rectList.get(i));
 		}
+		*/
         
-        MatOfByte matOfByte = new MatOfByte();
-        Imgcodecs.imencode(".png", mat, matOfByte);
-        byte[] byteArray = matOfByte.toArray();
+        byte[] byteArray = new byte[size];
+        opencv_imgcodecs.imencode(".png", mat, byteArray);
         
         return byteArray;
     }
@@ -52,42 +49,39 @@ public class CharacterReplacer {
     //画像の文字列の位置を緑の長方形で塗りつぶすメソッド
     private void DrawingRectangle(Mat mat, Rect lineRect)
     {
-        Imgproc.rectangle(mat, new Point(lineRect.x, lineRect.y), new Point((lineRect.x + lineRect.width), (lineRect.y + lineRect.height)), new Scalar(0, 255, 0), -1);
+        opencv_imgproc.rectangle(mat, lineRect, new Scalar(0, 255, 0, 0), -1, opencv_imgproc.FILLED, 0);
     }
 
     //画像の文字列の位置に翻訳した文字を重ねるメソッド
     private void DrawingText(Mat mat, String text, Rect lineRect)
     {
-    	BufferedImage img = new BufferedImage(lineRect.width, lineRect.height, BufferedImage.TYPE_3BYTE_BGR);
+    	BufferedImage img = new BufferedImage(lineRect.width(), lineRect.height(), BufferedImage.TYPE_INT_ARGB);
 		Graphics g = img.getGraphics();
 		//文字色
 		g.setColor(Color.BLACK);
 		g.drawString(text, 0, 0);
 		g.dispose();
 		
-		Mat smat = mat.submat(lineRect);
-		smat = ConvertBufferedImageToMat(img);
+		Mat overlayMat = ConvertBufferedImageToMat(img);
+		overlayMat.copyTo(mat.apply(lineRect));
     }
     
     private Mat ConvertBufferedImageToMat(BufferedImage image) {
-        // バイト列生成
-        ByteArrayOutputStream bout = new ByteArrayOutputStream();
+    	// 各画素のARGB色情報を抽出
+        // intは4byteなので、各byteがそれぞれARGBの各要素に対応している
+        int[] argbArray = image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth());
 
-        try {
-          // 画像データをバイト列に書き出す
-          ImageIO.write(image, "png", bout);
-          // バイト列を閉じる
-          bout.close();
-        } catch (IOException e) {
-          System.out.println("🖼 画像データのOpenCVへの取り込みに失敗しました：" + e);
-          // 問題があれば終了
-          return null;
+        // int配列をbyte配列に変換する
+        // その際、Mat型で読み込めるようにARGBの並びをBGRAに変換する
+        byte[] bgraArray = new byte[argbArray.length * 4];
+        for (int i = 0; i < argbArray.length; i++) {
+            bgraArray[i * 4 + 0] = (byte) ((argbArray[i] >> 0) & 0xFF); // B
+            bgraArray[i * 4 + 1] = (byte) ((argbArray[i] >> 8) & 0xFF); // G
+            bgraArray[i * 4 + 2] = (byte) ((argbArray[i] >> 16) & 0xFF); // R
+            bgraArray[i * 4 + 3] = (byte) ((argbArray[i] >> 24) & 0xFF); // A
         }
 
-        // バイト列からOpenCVのMatを生成
-        MatOfByte mb = new MatOfByte(bout.toByteArray());
-
         // Mat形式取得
-        return Imgcodecs.imdecode(mb, Imgcodecs.IMREAD_COLOR);
+        return new Mat(image.getHeight(), image.getWidth(), CvType.CV_8UC4, new BytePointer(bgraArray));
       }
 }

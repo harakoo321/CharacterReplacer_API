@@ -21,9 +21,12 @@ public class MainController {
 	@ResponseBody
 	public String replacecharacter(@RequestBody JsonData jsondata) throws IOException{
 		var rectList = replacer.CreateRectList(jsondata.getX(), jsondata.getY(), jsondata.getWidth(), jsondata.getHeight());
+		System.out.println("start\n" + jsondata.getBase64ByteImage() + "end");
 		byte[] inputBytes = Base64.getDecoder().decode(jsondata.getBase64ByteImage());
-		byte[] outputBytes = replacer.ReplaceCharacter(jsondata.getText(), rectList, replacer.ConvertByteToMat(inputBytes));
-		return Base64.getEncoder().encodeToString(outputBytes);
+		byte[] outputBytes = replacer.ReplaceCharacter(inputBytes.length, jsondata.getText(), rectList, replacer.ConvertByteToMat(inputBytes));
+		String resStr = Base64.getEncoder().encodeToString(outputBytes);
+		System.out.println("response\n" + resStr);
+		return resStr;
 	}
 	
 	@RequestMapping("/hello")
