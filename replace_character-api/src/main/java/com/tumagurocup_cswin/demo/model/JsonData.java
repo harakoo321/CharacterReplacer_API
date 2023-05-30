@@ -19,6 +19,10 @@ public class JsonData {
 	private List<Integer> width;
 	@JsonProperty("height")
 	private List<Integer> height;
+	@JsonProperty("imageWidth")
+	private int imageWidth;
+	@JsonProperty("imageHeight")
+	private int imageHeight;
 	@JsonProperty("base64ByteImage")
 	private String base64ByteImage;
 }

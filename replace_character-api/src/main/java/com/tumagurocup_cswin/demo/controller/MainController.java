@@ -21,11 +21,11 @@ public class MainController {
 	@ResponseBody
 	public String replacecharacter(@RequestBody JsonData jsondata) throws IOException{
 		var rectList = replacer.CreateRectList(jsondata.getX(), jsondata.getY(), jsondata.getWidth(), jsondata.getHeight());
-		System.out.println("start\n" + jsondata.getBase64ByteImage() + "end");
+		System.out.println("post:\n" + jsondata.getBase64ByteImage());
 		byte[] inputBytes = Base64.getDecoder().decode(jsondata.getBase64ByteImage());
-		byte[] outputBytes = replacer.ReplaceCharacter(inputBytes.length, jsondata.getText(), rectList, replacer.ConvertByteToMat(inputBytes));
+		byte[] outputBytes = replacer.ReplaceCharacter(inputBytes.length, jsondata.getText(), rectList, replacer.ConvertByteToMat(jsondata.getImageWidth(), jsondata.getImageHeight(), inputBytes));
 		String resStr = Base64.getEncoder().encodeToString(outputBytes);
-		System.out.println("response\n" + resStr);
+		System.out.println("response:\n" + resStr);
 		return resStr;
 	}
 	
